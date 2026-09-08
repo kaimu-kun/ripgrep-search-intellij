@@ -1,16 +1,19 @@
 package com.github.ss.ripgrepsearch.search
 
+import com.github.ss.ripgrepsearch.settings.RipgrepSettings
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.PathEnvironmentVariableUtil
 import com.intellij.execution.process.OSProcessHandler
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessListener
+import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.util.Key
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import java.io.File
 import java.nio.charset.StandardCharsets
 import java.nio.file.Path
 
@@ -24,13 +27,13 @@ class RipgrepProcessRunner(
             return@callbackFlow
         }
 
-        val rgExecutable = PathEnvironmentVariableUtil.findInPath("rg")?.absolutePath
-        if (rgExecutable == null) {
-            trySend(RipgrepSearchEvent.Failed("ripgrep (rg) was not found on PATH. Install ripgrep and make sure rg is available on PATH."))
+        val rgExecutable = resolveRipgrepExecutable()
+        if (rgExecutable is RipgrepExecutableResolution.Failure) {
+            trySend(RipgrepSearchEvent.Failed(rgExecutable.message))
             close()
             return@callbackFlow
         }
-        val commandLine = GeneralCommandLine(rgExecutable)
+        val commandLine = GeneralCommandLine((rgExecutable as RipgrepExecutableResolution.Success).executable)
             .withWorkDirectory(request.projectRoot.toFile())
             .withCharset(StandardCharsets.UTF_8)
             .withParameters(
@@ -42,13 +45,13 @@ class RipgrepProcessRunner(
                 "--max-columns-preview",
                 "--",
                 request.query,
-                ".",
+                request.searchPath,
             )
 
         val handler = try {
             OSProcessHandler(commandLine)
         } catch (t: Throwable) {
-            trySend(RipgrepSearchEvent.Failed("Unable to start ripgrep: ${t.message ?: t.javaClass.simpleName}"))
+            trySend(RipgrepSearchEvent.Failed("Unable to start ripgrep at '${commandLine.exePath}': ${t.message ?: t.javaClass.simpleName}"))
             close()
             return@callbackFlow
         }
@@ -136,12 +139,35 @@ class RipgrepProcessRunner(
             }
         }
     }
+
+    private fun resolveRipgrepExecutable(): RipgrepExecutableResolution {
+        val configuredPath = RipgrepSettings.getInstance().state.rgPath.trim()
+        if (configuredPath.isNotEmpty()) {
+            val file = File(configuredPath)
+            return if (file.isFile && file.canExecute()) {
+                RipgrepExecutableResolution.Success(file.absolutePath)
+            } else {
+                RipgrepExecutableResolution.Failure("Configured ripgrep path is not executable: $configuredPath")
+            }
+        }
+
+        val executable = PathEnvironmentVariableUtil.findInPath("rg")?.absolutePath
+            ?: return RipgrepExecutableResolution.Failure("ripgrep (rg) was not found on PATH. Install ripgrep or configure its path in Settings | Tools | Ripgrep Search.")
+        return RipgrepExecutableResolution.Success(executable)
+    }
+}
+
+private sealed interface RipgrepExecutableResolution {
+    data class Success(val executable: String) : RipgrepExecutableResolution
+    data class Failure(val message: String) : RipgrepExecutableResolution
 }
 
 private fun RipgrepResultCandidate.toResult(projectRoot: Path): RipgrepResult? {
     val relative = relativePath.removePrefix("./")
     val absolute = projectRoot.resolve(relative).normalize()
-    val virtualFile: VirtualFile = LocalFileSystem.getInstance().findFileByIoFile(absolute.toFile()) ?: return null
+    val virtualFile: VirtualFile = ReadAction.computeBlocking<VirtualFile?, RuntimeException> {
+        LocalFileSystem.getInstance().findFileByIoFile(absolute.toFile())
+    } ?: return null
     if (!virtualFile.isValid) return null
 
     return RipgrepResult(

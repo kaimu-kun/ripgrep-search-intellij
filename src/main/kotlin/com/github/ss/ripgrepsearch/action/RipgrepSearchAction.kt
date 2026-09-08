@@ -1,7 +1,7 @@
 package com.github.ss.ripgrepsearch.action
 
 import com.github.ss.ripgrepsearch.notifications.RipgrepNotifications
-import com.github.ss.ripgrepsearch.ui.RipgrepSearchPopup
+import com.github.ss.ripgrepsearch.ui.RipgrepSearchDialog
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.DumbAwareAction
@@ -22,6 +22,6 @@ class RipgrepSearchAction : DumbAwareAction() {
             return
         }
 
-        RipgrepSearchPopup(project, e.dataContext, Path.of(basePath)).show()
+        RipgrepSearchDialog(project, Path.of(basePath)).show()
     }
 }

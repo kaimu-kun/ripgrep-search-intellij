@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>com.github.ss.ripgrepsearch</id>
     <name>Ripgrep Search</name>
-    <vendor>ss</vendor>
+    <vendor>yeet</vendor>
 
     <description><![CDATA[
         Fast keyboard-first project search backed by ripgrep, with live results and IntelliJ-native file preview.
@@ -11,6 +11,10 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <notificationGroup id="Ripgrep Search" displayType="BALLOON"/>
+        <applicationConfigurable parentId="tools"
+                                 instance="com.github.ss.ripgrepsearch.settings.RipgrepSettingsConfigurable"
+                                 id="settings.ripgrep.search"
+                                 displayName="Ripgrep Search"/>
     </extensions>
 
     <actions>

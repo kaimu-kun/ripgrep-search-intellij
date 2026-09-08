@@ -6,6 +6,7 @@ import java.nio.file.Path
 data class RipgrepSearchRequest(
     val query: String,
     val projectRoot: Path,
+    val searchPath: String = ".",
     val maxResults: Int = 500,
 )
 
