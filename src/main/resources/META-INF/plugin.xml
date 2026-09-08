@@ -1,0 +1,26 @@
+<idea-plugin>
+    <id>com.github.ss.ripgrepsearch</id>
+    <name>Ripgrep Search</name>
+    <vendor>ss</vendor>
+
+    <description><![CDATA[
+        Fast keyboard-first project search backed by ripgrep, with live results and IntelliJ-native file preview.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="Ripgrep Search" displayType="BALLOON"/>
+    </extensions>
+
+    <actions>
+        <action id="com.github.ss.ripgrepsearch.RipgrepSearchAction"
+                class="com.github.ss.ripgrepsearch.action.RipgrepSearchAction"
+                text="Ripgrep Search"
+                description="Search the project with ripgrep">
+            <add-to-group group-id="FindMenuGroup" anchor="last"/>
+            <synonym text="rg"/>
+            <synonym text="ripgrep"/>
+        </action>
+    </actions>
+</idea-plugin>
